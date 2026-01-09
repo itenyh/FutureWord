@@ -1,3 +1,4 @@
+from imp import reload
 import flet as ft
 
 def _readfile_as_list(filename, encoding='utf-8'):
@@ -23,7 +24,7 @@ class WordCollectionView(ft.Container):
     def __init__(self, columns: int = 3):
         super().__init__()
         self.columns = columns
-        self.button_width = 140
+        self.button_width = 180
 
     def refresh(self, word_view_list: list[WordViewItem]):
         button_list = []
@@ -32,23 +33,27 @@ class WordCollectionView(ft.Container):
             if i < len(word_view_list):
                 item = word_view_list[i]
                 button = ft.Button(
-                    content=item.word,
+                    content=ft.Text(
+                        item.word,
+                        text_align=ft.TextAlign.CENTER,  # 设置居中
+                        size=20,
+                        style=ft.TextStyle(
+                            height=1.0,  # 关键：行高倍数
+                        ),
+                    ),
                     key=i,
                     bgcolor=ft.Colors.WHITE,
                     color=ft.Colors.BLACK,
                     width=self.button_width,
-                    height=40,
+                    height=45,
                     on_click=self._button_clicked,
                 )
                 self._decorate_button(button, item.selected)
             else:
                 button = ft.Button(
-                    content=" ",
-                    key=f"placeholder-{i}",
                     bgcolor=ft.Colors.GREY,
-                    color=ft.Colors.BLACK,
                     width=self.button_width,
-                    height=40,
+                    height=45,
                     disabled=True,
                 )
             button_list.append(button)
@@ -135,66 +140,78 @@ class WordViewModel():
         words = self.selected_words()
         return '\n'.join(words)
 
-def main(page: ft.Page):
-
-    async def _handle_pick_files(e):
+@ft.control
+class FutureWordApp(ft.Container):
+    def init(self):
+        self.bgcolor = ft.Colors.PINK_300
+        self.border_radius = ft.BorderRadius.all(20)
+        self.padding = 20
+        self.info_label = ft.Text(value="0", color=ft.Colors.WHITE, size=20)
+        self.word_viewmodel = WordViewModel()
+        self.collection_view = WordCollectionView(columns=self.word_viewmodel.page_column)
+        self.collection_view.on_word_clicked = self.word_viewmodel.on_word_clicked
+        
+        self.content = ft.Column(
+            controls=[
+                ft.Row(controls=[self.info_label]),
+                ft.Row(
+                    controls=[
+                        self.collection_view
+                    ]
+                ),
+                ft.Row(
+            controls=[
+                ft.Button("上一页", on_click=self._page_clicked, bgcolor=ft.Colors.WHITE, color=ft.Colors.BLACK),
+                ft.Button("下一页", on_click=self._page_clicked, bgcolor=ft.Colors.WHITE, color=ft.Colors.BLACK),
+                ft.Button("导出", on_click=self._export_clicked, bgcolor=ft.Colors.BLUE_ACCENT, color=ft.Colors.WHITE),
+                ft.Button("打开", on_click=self._handle_pick_files, bgcolor=ft.Colors.WHITE, color=ft.Colors.BLACK),
+                ft.Button("过滤", on_click=self._handle_filter_files, bgcolor=ft.Colors.WHITE, color=ft.Colors.BLACK)
+            ]
+            )
+            ]
+        )
+    
+    async def _handle_pick_files(self, e):
         picker = ft.FilePicker()
         files = await picker.pick_files(allow_multiple=False)
         if files:
             selected_words = _readfile_as_list(files[0].path)
-            word_viewmodel.update_word_list(selected_words)
-            _reload_view()
+            self.word_viewmodel.update_word_list(selected_words)
+            self._reload_view()
 
-    async def _handle_filter_files(e):
+    async def _handle_filter_files(self, e):
         picker = ft.FilePicker()
         files = await picker.pick_files(allow_multiple=False)
         if files:
             filter_words = _readfile_as_list(files[0].path)
-            word_viewmodel.filter_word_list(filter_words)
-            _reload_view()
+            self.word_viewmodel.filter_word_list(filter_words)
+            self._reload_view()
 
-
-    page.title = "Word Recite"
-    word_viewmodel = WordViewModel()
-
-    #前端
-    info_label = ft.Text()
-    collection_view = WordCollectionView(columns=word_viewmodel.page_column)
-
-    def _reload_view():
-        current_word_list = word_viewmodel.get_current_word_list()
-        collection_view.refresh(current_word_list)
-        info_label.value = f"第 {word_viewmodel.current_page + 1} / {word_viewmodel.total_page} 页"
-        info_label.update()
-
-    def _page_clicked(e):
-        word_viewmodel.page_change(e.control.content == "下一页")
-        _reload_view()
-
-    async def _export_clicked(e):
-        words = word_viewmodel.selected_words()
+    async def _export_clicked(self, e):
+        words = self.word_viewmodel.selected_words()
         await _savelist_to_file(words)
+    
+    def _page_clicked(self, e):
+        self.word_viewmodel.page_change(e.control.content == "下一页")
+        self._reload_view()
+        
+    def _reload_view(self):
+        current_word_list = self.word_viewmodel.get_current_word_list()
+        self.collection_view.refresh(current_word_list)
+        self.info_label.value = f"第 {self.word_viewmodel.current_page + 1} / {self.word_viewmodel.total_page} 页"
+        self.info_label.update()
 
-    page.add(
-        ft.Row(controls=[info_label]),
-        ft.Row(
-            controls=[
-                collection_view
-            ]
-        ),
-        ft.Row(
-            controls=[
-                ft.Button("上一页", on_click=_page_clicked, bgcolor=ft.Colors.WHITE, color=ft.Colors.BLACK),
-                ft.Button("下一页", on_click=_page_clicked, bgcolor=ft.Colors.WHITE, color=ft.Colors.BLACK),
-                ft.Button("导出", on_click=_export_clicked, bgcolor=ft.Colors.BLUE_ACCENT, color=ft.Colors.WHITE),
-                ft.Button("打开", on_click=_handle_pick_files, bgcolor=ft.Colors.WHITE, color=ft.Colors.BLACK),
-                ft.Button("过滤", on_click=_handle_filter_files, bgcolor=ft.Colors.WHITE, color=ft.Colors.BLACK)
-            ]
-        )
-    )
+    def load_test_data(self):
+        self.word_viewmodel.update_word_list(['apple', 'bananaaa123banane', 'child', 'apple', 'banana', 'child', 'apple', 'banana', 'child', 'apple', 'banana', 'child'])
 
-    #数据加载
-    collection_view.on_word_clicked = word_viewmodel.on_word_clicked
-    _reload_view()
+def main(page: ft.Page):
+
+    page.title = "FutureWord"
+    page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
+    page.vertical_alignment = ft.CrossAxisAlignment.CENTER
+    app = FutureWordApp()
+    page.add(ft.Row(controls=[app], alignment=ft.MainAxisAlignment.CENTER))
+    app.load_test_data()
+    app._reload_view()
 
 ft.run(main)
