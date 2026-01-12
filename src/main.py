@@ -1,4 +1,3 @@
-from imp import reload
 import flet as ft
 
 def _readfile_as_list(filename, encoding='utf-8'):
@@ -51,15 +50,22 @@ class WordCollectionView(ft.Container):
                 self._decorate_button(button, item.selected)
             else:
                 button = ft.Button(
-                    bgcolor=ft.Colors.GREY,
+                    content=ft.Text(
+                        text_align=ft.TextAlign.CENTER,  # 设置居中
+                        size=20,
+                        style=ft.TextStyle(
+                            height=1.0,  # 关键：行高倍数
+                        ),
+                    ),
+                    bgcolor=ft.Colors.GREY_300,
                     width=self.button_width,
                     height=45,
-                    disabled=True,
+                    disabled=True
                 )
             button_list.append(button)
 
-        button_group = [button_list[i:i+self.columns] for i in range(0, len(button_list), self.columns)]
-        rows = [ft.Row(controls=group, alignment=ft.MainAxisAlignment.END) for group in button_group]
+        row_buttons = [button_list[i:i+self.columns] for i in range(0, len(button_list), self.columns)]
+        rows = [ft.Row(controls=row_button, alignment=ft.MainAxisAlignment.END) for row_button in row_buttons]
         self.content = ft.Column(controls=rows)
 
         self.update()
@@ -146,7 +152,7 @@ class FutureWordApp(ft.Container):
         self.bgcolor = ft.Colors.PINK_300
         self.border_radius = ft.BorderRadius.all(20)
         self.padding = 20
-        self.info_label = ft.Text(value="0", color=ft.Colors.WHITE, size=20)
+        self.info_label = ft.Text(value="请添加单词列表", color=ft.Colors.WHITE, size=20)
         self.word_viewmodel = WordViewModel()
         self.collection_view = WordCollectionView(columns=self.word_viewmodel.page_column)
         self.collection_view.on_word_clicked = self.word_viewmodel.on_word_clicked
@@ -202,7 +208,7 @@ class FutureWordApp(ft.Container):
         self.info_label.update()
 
     def load_test_data(self):
-        self.word_viewmodel.update_word_list(['apple', 'bananaaa123banane', 'child', 'apple', 'banana', 'child', 'apple', 'banana', 'child', 'apple', 'banana', 'child'])
+        self.word_viewmodel.update_word_list(['apple', 'banana', 'child'])
 
 def main(page: ft.Page):
 
@@ -211,7 +217,7 @@ def main(page: ft.Page):
     page.vertical_alignment = ft.CrossAxisAlignment.CENTER
     app = FutureWordApp()
     page.add(ft.Row(controls=[app], alignment=ft.MainAxisAlignment.CENTER))
-    app.load_test_data()
-    app._reload_view()
+    # app.load_test_data()
+    # app._reload_view()
 
 ft.run(main)
