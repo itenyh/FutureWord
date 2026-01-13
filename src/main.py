@@ -1,4 +1,9 @@
 import flet as ft
+from word_viewmodel import WordViewModel, WordViewItem
+
+def _readfile_as_text(filename, encoding='utf-8'):
+    with open(filename, 'r', encoding=encoding) as f:
+        return f.read()
 
 def _readfile_as_list(filename, encoding='utf-8'):
     with open(filename, 'r', encoding=encoding) as f:
@@ -10,14 +15,6 @@ async def _savelist_to_file(word_list: list[str], encoding='utf-8'):
         with open(path, 'w', encoding=encoding) as f:
             f.write('\n'.join(str(item) for item in word_list) + '\n')
     return True
-
-def _exclude(new_list, filter_list):
-    return [item for item in new_list if item not in filter_list]
-
-class WordViewItem():
-    def __init__(self, word: str):
-        self.word = word
-        self.selected = False
 
 class WordCollectionView(ft.Container):
     def __init__(self, columns: int = 3):
@@ -85,67 +82,6 @@ class WordCollectionView(ft.Container):
         if self.on_word_clicked:
             self.on_word_clicked(e.control.key, not selected)
 
-class WordViewModel():
-    def __init__(self):
-        super().__init__()
-        self.current_page = 0
-        self.page_column = 3
-        self.page_size = self.page_column * self.page_column
-        self.word_list = []
-        self.worditem_list = []
-        self._setup_list()
-
-    def _setup_list(self):
-        # input_list = _readfile_as_list('data/product/input.txt')
-        # filter_list = _readfile_as_list('data/product/filter.txt')
-
-        # input_list = []
-        # filter_list = []
-        # self.word_list = _exclude(input_list, filter_list)
-        self.worditem_list = [WordViewItem(word) for word in self.word_list]
-        self.total_page = (len(self.worditem_list) + self.page_size - 1) // self.page_size
-
-    def update_word_list(self, words: list[str]):
-        self.word_list = words
-        self._setup_list()
-
-    def filter_word_list(self, words: list[str]):
-        self.word_list = _exclude(self.word_list, words)
-        self._setup_list()
-
-    def get_current_word_list(self):
-        start = self.current_page * self.page_size
-        end = start + self.page_size
-        if start < 0:
-            start = 0
-        if end > len(self.worditem_list):
-            end = len(self.worditem_list)
-        # print("start - end", start, '-' ,end)
-        return self.worditem_list[start:end]
-
-    def on_word_clicked(self, index: int, selected: bool):
-        real_index = self.current_page * self.page_size + index
-        # print(index, real_index, selected, self.worditem_list[real_index].word)
-        self.worditem_list[real_index].selected = selected
-
-    def page_change(self, is_next: bool):
-        if is_next:
-            self.current_page += 1
-        else:
-            self.current_page -= 1
-        if self.current_page < 0:
-            self.current_page = 0
-        if self.current_page * self.page_size >= len(self.worditem_list):
-            self.current_page -= 1
-
-    def selected_words(self):
-        selected_words = [item.word for item in self.worditem_list if item.selected]
-        return selected_words
-
-    def selected_words_str(self):
-        words = self.selected_words()
-        return '\n'.join(words)
-
 @ft.control
 class FutureWordApp(ft.Container):
     def init(self):
@@ -181,8 +117,8 @@ class FutureWordApp(ft.Container):
         picker = ft.FilePicker()
         files = await picker.pick_files(allow_multiple=False)
         if files:
-            selected_words = _readfile_as_list(files[0].path)
-            self.word_viewmodel.update_word_list(selected_words)
+            text = _readfile_as_text(files[0].path)
+            self.word_viewmodel.update_wordlist_with_text(text)
             self._reload_view()
 
     async def _handle_filter_files(self, e):
@@ -208,7 +144,11 @@ class FutureWordApp(ft.Container):
         self.info_label.update()
 
     def load_test_data(self):
-        self.word_viewmodel.update_word_list(['apple', 'banana', 'child'])
+        input_text = _readfile_as_text("data/3. The Menstrual Cycle.txt")
+        self.word_viewmodel.update_wordlist_with_text(input_text)
+        filter_list = _readfile_as_list("data/filter.txt")
+        self.word_viewmodel.filter_word_list(filter_list)
+        self._reload_view()
 
 def main(page: ft.Page):
 
@@ -217,7 +157,7 @@ def main(page: ft.Page):
     page.vertical_alignment = ft.CrossAxisAlignment.CENTER
     app = FutureWordApp()
     page.add(ft.Row(controls=[app], alignment=ft.MainAxisAlignment.CENTER))
-    # app.load_test_data()
+    app.load_test_data()
     # app._reload_view()
 
 ft.run(main)
