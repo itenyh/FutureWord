@@ -1,5 +1,23 @@
 import flet as ft
 from word_viewmodel import WordViewModel, WordViewItem
+import os
+
+async def _savefiles_as_filters(filepathes: list[str], encoding='utf-8'):
+
+    storage_path = await ft.StoragePaths().get_application_support_directory()
+    destination_dir = storage_path + "/filters"
+    #如果目录不存在，则创建
+    if not os.path.exists(destination_dir):
+        os.makedirs(destination_dir)
+    print(f"文件存储至: {destination_dir}")
+
+    for filepath in filepathes:
+        source_file = filepath.path
+        filename = os.path.basename(source_file)
+        destination_file = os.path.join(destination_dir, filename)
+        # 复制文件内容
+        with open(source_file, 'r', encoding=encoding) as src, open(destination_file, 'w', encoding=encoding) as dst:
+            dst.write(src.read())
 
 def _readfile_as_text(filename, encoding='utf-8'):
     with open(filename, 'r', encoding=encoding) as f:
@@ -8,6 +26,16 @@ def _readfile_as_text(filename, encoding='utf-8'):
 def _readfile_as_list(filename, encoding='utf-8'):
     with open(filename, 'r', encoding=encoding) as f:
         return [line.strip() for line in f]
+
+async def _readfiles_in_filters_dir_as_list(encoding='utf-8'):
+    storage_path = await ft.StoragePaths().get_application_support_directory()
+    directory = storage_path + "/filters"
+    filepaths = [os.path.join(directory, f) for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))]
+    result = []
+    for filepath in filepaths:
+        filter_words = _readfile_as_list(filepath)
+        result.extend(filter_words)
+    return result
 
 async def _savelist_to_file(word_list: list[str], encoding='utf-8'):
     path = await ft.FilePicker().save_file(file_name="selection.txt", initial_directory="./")
@@ -119,15 +147,16 @@ class FutureWordApp(ft.Container):
         if files:
             text = _readfile_as_text(files[0].path)
             self.word_viewmodel.update_wordlist_with_text(text)
+            #读取所有filters文件
+            filter_words = await _readfiles_in_filters_dir_as_list()
+            self.word_viewmodel.filter_word_list(filter_words)
             self._reload_view()
 
     async def _handle_filter_files(self, e):
         picker = ft.FilePicker()
-        files = await picker.pick_files(allow_multiple=False)
+        files = await picker.pick_files(allow_multiple=True)
         if files:
-            filter_words = _readfile_as_list(files[0].path)
-            self.word_viewmodel.filter_word_list(filter_words)
-            self._reload_view()
+            await _savefiles_as_filters(files)
 
     async def _export_clicked(self, e):
         words = self.word_viewmodel.selected_words()
@@ -157,7 +186,7 @@ def main(page: ft.Page):
     page.vertical_alignment = ft.CrossAxisAlignment.CENTER
     app = FutureWordApp()
     page.add(ft.Row(controls=[app], alignment=ft.MainAxisAlignment.CENTER))
-    app.load_test_data()
+    # app.load_test_data()
     # app._reload_view()
 
 ft.run(main)
