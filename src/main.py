@@ -1,114 +1,7 @@
 import flet as ft
+import util as ut
 from word_viewmodel import WordViewModel, WordViewItem
-import os
-
-async def _savefiles_as_filters(filepathes: list[str], encoding='utf-8'):
-
-    storage_path = await ft.StoragePaths().get_application_support_directory()
-    destination_dir = storage_path + "/filters"
-    #如果目录不存在，则创建
-    if not os.path.exists(destination_dir):
-        os.makedirs(destination_dir)
-    print(f"文件存储至: {destination_dir}")
-
-    for filepath in filepathes:
-        source_file = filepath.path
-        filename = os.path.basename(source_file)
-        destination_file = os.path.join(destination_dir, filename)
-        # 复制文件内容
-        with open(source_file, 'r', encoding=encoding) as src, open(destination_file, 'w', encoding=encoding) as dst:
-            dst.write(src.read())
-
-def _readfile_as_text(filename, encoding='utf-8'):
-    with open(filename, 'r', encoding=encoding) as f:
-        return f.read()
-
-def _readfile_as_list(filename, encoding='utf-8'):
-    with open(filename, 'r', encoding=encoding) as f:
-        return [line.strip() for line in f]
-
-async def _readfiles_in_filters_dir_as_list(encoding='utf-8'):
-    storage_path = await ft.StoragePaths().get_application_support_directory()
-    directory = storage_path + "/filters"
-    filepaths = [os.path.join(directory, f) for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))]
-    result = []
-    for filepath in filepaths:
-        filter_words = _readfile_as_list(filepath)
-        result.extend(filter_words)
-    return result
-
-async def _savelist_to_file(word_list: list[str], encoding='utf-8'):
-    path = await ft.FilePicker().save_file(file_name="selection.txt", initial_directory="./")
-    if path:
-        with open(path, 'w', encoding=encoding) as f:
-            f.write('\n'.join(str(item) for item in word_list) + '\n')
-    return True
-
-class WordCollectionView(ft.Container):
-    def __init__(self, columns: int = 3):
-        super().__init__()
-        self.columns = columns
-        self.button_width = 180
-
-    def refresh(self, word_view_list: list[WordViewItem]):
-        button_list = []
-        total = self.columns * self.columns
-        for i in range(total):
-            if i < len(word_view_list):
-                item = word_view_list[i]
-                button = ft.Button(
-                    content=ft.Text(
-                        item.word,
-                        text_align=ft.TextAlign.CENTER,  # 设置居中
-                        size=20,
-                        style=ft.TextStyle(
-                            height=1.0,  # 关键：行高倍数
-                        ),
-                    ),
-                    key=i,
-                    bgcolor=ft.Colors.WHITE,
-                    color=ft.Colors.BLACK,
-                    width=self.button_width,
-                    height=45,
-                    on_click=self._button_clicked,
-                )
-                self._decorate_button(button, item.selected)
-            else:
-                button = ft.Button(
-                    content=ft.Text(
-                        text_align=ft.TextAlign.CENTER,  # 设置居中
-                        size=20,
-                        style=ft.TextStyle(
-                            height=1.0,  # 关键：行高倍数
-                        ),
-                    ),
-                    bgcolor=ft.Colors.GREY_300,
-                    width=self.button_width,
-                    height=45,
-                    disabled=True
-                )
-            button_list.append(button)
-
-        row_buttons = [button_list[i:i+self.columns] for i in range(0, len(button_list), self.columns)]
-        rows = [ft.Row(controls=row_button, alignment=ft.MainAxisAlignment.END) for row_button in row_buttons]
-        self.content = ft.Column(controls=rows)
-
-        self.update()
-
-    def _decorate_button(self, button: ft.Button, selected: bool):
-        if selected:
-            button.bgcolor = ft.Colors.RED
-        else:
-            button.bgcolor = ft.Colors.WHITE
-    
-    def _button_clicked(self, e):
-
-        selected = e.control.bgcolor == ft.Colors.RED
-        self._decorate_button(e.control, not selected)
-        e.control.update()
-
-        if self.on_word_clicked:
-            self.on_word_clicked(e.control.key, not selected)
+from view import WordCollectionView
 
 @ft.control
 class FutureWordApp(ft.Container):
@@ -145,10 +38,10 @@ class FutureWordApp(ft.Container):
         picker = ft.FilePicker()
         files = await picker.pick_files(allow_multiple=False)
         if files:
-            text = _readfile_as_text(files[0].path)
+            text = ut._readfile_as_text(files[0].path)
             self.word_viewmodel.update_wordlist_with_text(text)
             #读取所有filters文件
-            filter_words = await _readfiles_in_filters_dir_as_list()
+            filter_words = await ut._readfiles_in_filters_dir_as_list()
             self.word_viewmodel.filter_word_list(filter_words)
             self._reload_view()
 
@@ -156,11 +49,11 @@ class FutureWordApp(ft.Container):
         picker = ft.FilePicker()
         files = await picker.pick_files(allow_multiple=True)
         if files:
-            await _savefiles_as_filters(files)
+            await ut._savefiles_as_filters(files)
 
     async def _export_clicked(self, e):
         words = self.word_viewmodel.selected_words()
-        await _savelist_to_file(words)
+        await ut._savelist_to_file(words)
     
     def _page_clicked(self, e):
         self.word_viewmodel.page_change(e.control.content == "下一页")
@@ -173,9 +66,9 @@ class FutureWordApp(ft.Container):
         self.info_label.update()
 
     def load_test_data(self):
-        input_text = _readfile_as_text("data/3. The Menstrual Cycle.txt")
+        input_text = ut._readfile_as_text("data/3. The Menstrual Cycle.txt")
         self.word_viewmodel.update_wordlist_with_text(input_text)
-        filter_list = _readfile_as_list("data/filter.txt")
+        filter_list = ut._readfile_as_list("data/filter.txt")
         self.word_viewmodel.filter_word_list(filter_list)
         self._reload_view()
 

@@ -1,7 +1,6 @@
 import re
+import util as ut
 
-def _exclude(new_list, filter_list):
-    return [item for item in new_list if item not in filter_list]
 class WordViewItem():
     def __init__(self, word: str):
         self.word = word
@@ -18,12 +17,6 @@ class WordViewModel():
         self._setup_list()
 
     def _setup_list(self):
-        # input_list = _readfile_as_list('data/product/input.txt')
-        # filter_list = _readfile_as_list('data/product/filter.txt')
-
-        # input_list = []
-        # filter_list = []
-        # self.word_list = _exclude(input_list, filter_list)
         self.worditem_list = [WordViewItem(word) for word in self.word_list]
         self.total_page = (len(self.worditem_list) + self.page_size - 1) // self.page_size
 
@@ -32,7 +25,7 @@ class WordViewModel():
         self._setup_list()
 
     def filter_word_list(self, words: list[str]):
-        self.word_list = _exclude(self.word_list, words)
+        self.word_list = ut._exclude(self.word_list, words)
         self._setup_list()
 
     def get_current_word_list(self):
