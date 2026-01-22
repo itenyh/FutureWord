@@ -2,6 +2,7 @@ import flet as ft
 import util as ut
 from word_viewmodel import WordViewModel, WordViewItem
 from view import WordCollectionView
+from data_storage import _init_path, WordSessionDao
 
 @ft.control
 class FutureWordApp(ft.Container):
@@ -40,9 +41,6 @@ class FutureWordApp(ft.Container):
         if files:
             text = ut._readfile_as_text(files[0].path)
             self.word_viewmodel.update_wordlist_with_text(text)
-            #读取所有filters文件
-            filter_words = await ut._readfiles_in_filters_dir_as_list()
-            self.word_viewmodel.filter_word_list(filter_words)
             self._reload_view()
 
     async def _handle_filter_files(self, e):
@@ -72,13 +70,16 @@ class FutureWordApp(ft.Container):
         self.word_viewmodel.filter_word_list(filter_list)
         self._reload_view()
 
-def main(page: ft.Page):
+async def main(page: ft.Page):
 
     page.title = "FutureWord"
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.vertical_alignment = ft.CrossAxisAlignment.CENTER
     app = FutureWordApp()
     page.add(ft.Row(controls=[app], alignment=ft.MainAxisAlignment.CENTER))
+
+    await _init_path()
+
     # app.load_test_data()
     # app._reload_view()
 
